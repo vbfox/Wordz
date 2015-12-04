@@ -16,12 +16,12 @@ let fontSizes = [28 .. -4 .. 24] @ [22 .. -2 .. 12] @ [11 .. -1 .. 2]
 let buildWordSet wordsToUse =
     wordsToUse |> List.map (fun word -> word, Logic.buildTestCandidates word fontSizes)
 
-let inputFolder = @"/Users/fox/Google Drive/Rfq-hub/Picts/"
+let inputFolder = @"../../../"
 let outputFolder = @"/Users/fox/Code/"
 
 let inputFiles =
     [
-        "BigDog.png"
+        "Sample.png"
     ]
 
 let words =
