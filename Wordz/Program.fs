@@ -11,36 +11,29 @@
 let readWordsFromFile filePath =
     System.IO.File.ReadAllLines(filePath) |> Seq.toList
 
-let fontSizes = [32 .. -4 .. 24] @ [22 .. -2 .. 12] @ [11 .. -1 .. 4]
+let fontSizes = [28 .. -4 .. 24] @ [22 .. -2 .. 12] @ [11 .. -1 .. 2]
 
 let buildWordSet wordsToUse =
     wordsToUse |> List.map (fun word -> word, Logic.buildTestCandidates word fontSizes)
 
-let inputFolder = @"C:\Users\Pierre\Pictures\LevisIdeas\"
-let outputFolder = @"C:\Code\"
+let inputFolder = @"/Users/fox/Google Drive/Rfq-hub/Picts/"
+let outputFolder = @"/Users/fox/Code/"
 
 let inputFiles =
     [
-        "bobby-layer-1.png"
-        "bobby-layer-2.png"
-        "bobby-layer-3.png"
-        "bobby-layer-4.png"
-        "bobby-layer-5.png"
-        "bobby-layer-6.png"
-        "bobby-layer-7.png"
-        "bobby-layer-8.png"
-        "bobby-layer-9.png"
-        "bobby-layer-10.png"
+        "BigDog.png"
     ]
 
 let words =
     [
-        readWordsFromFile @"C:\Users\Pierre\Pictures\LevisIdeas\words.txt" 
-        [ "ITG"; "bob"; "€"; "$"; "£" ]
+        //readWordsFromFile @"/Users/fox/Google Drive/Rfq-hub/Picts/Dog.png" 
+        [ "WoW"; "Such"; "Much"; "Code" ]
     ] |> List.collect buildWordSet
 
 [<EntryPoint>]
 let main argv =
+    printfn "Starting !"
+
     let sw = System.Diagnostics.Stopwatch.StartNew()
     let tasks =
         [|
@@ -50,4 +43,5 @@ let main argv =
         |> Async.Parallel
         |> Async.RunSynchronously
     printfn "Elapsed : %O" sw.Elapsed
+
     0
