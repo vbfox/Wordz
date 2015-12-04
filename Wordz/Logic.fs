@@ -86,7 +86,7 @@ type Boundaries = {
     Width: int
     Height: int
     AvailableRight: int [,]
-    Coords: (int*int) []}
+    }
 
 let groupConsecutive input = seq {
         let mutable currentGroup : option<int * int * _>  = None
@@ -144,14 +144,6 @@ let updateBoundaries (forbiddenPixels:bool[,]) ((minX, maxX), (minY, maxY)) boun
 
     boundaries
 
-let coords (arr: 'a[,]) = seq {
-    let width = arr.GetLength(0);
-    let height = arr.GetLength(1); 
-    for x in 0..width-1 do
-        for y in 0..height-1 do
-            yield x,y
-}
-
 let getBoundaries (forbiddenPixels:bool[,]) = 
     let width = forbiddenPixels.GetLength(0)
     let height = forbiddenPixels.GetLength(1)
@@ -160,7 +152,6 @@ let getBoundaries (forbiddenPixels:bool[,]) =
         Width = width
         Height = height
         AvailableRight = availableRight
-        Coords = coords availableRight |> Array.ofSeq
     } |> updateBoundaries forbiddenPixels ((0, width - 1), (0, height - 1))
 
 type AddingState = {
