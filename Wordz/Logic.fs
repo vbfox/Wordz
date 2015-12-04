@@ -85,10 +85,8 @@ type Spot = {
 type Boundaries = {
     Width: int
     Height: int
-    NextInvalidRight: int[,]
-    NextFreeRight: int[,]
-    NextInvalidBottom: int[,]
-    NextFreeBottom: int[,] }
+    AvailableRight: int [,]
+    Coords: (int*int) []}
 
 let groupConsecutive input = seq {
         let mutable currentGroup : option<int * int * _>  = None
@@ -108,6 +106,14 @@ let groupConsecutive input = seq {
         | Some g -> yield g
     }
 
+let countFalse repetitions = seq {
+    for (start, count, value) in repetitions do
+        if value then
+            for i in count .. -1 .. 1 do yield 0
+        else
+            for i in count .. -1 .. 1 do yield i
+    }
+
 let indexesOfNextTrueAndFalse repetitions = seq {
     for (start, count, value) in repetitions do
         for i in start..start+count-1 do
@@ -119,31 +125,18 @@ let indexesOfNextTrueAndFalse repetitions = seq {
 
 let updateBoundaries (forbiddenPixels:bool[,]) ((minX, maxX), (minY, maxY)) boundaries =
     [|
-        yield async {
-            for y in minY .. maxY do
-                let nextTrueAndFalseOnLine =
-                    seq { for x in 0 .. boundaries.Width - 1 do yield forbiddenPixels.[x, y] }
-                    |> groupConsecutive
-                    |> indexesOfNextTrueAndFalse
-                    |> Seq.mapi (fun i value -> i, value)
+        for y in minY .. maxY do
+            yield async {
+                    let falseCountsOnLine =
+                        seq { for x in 0 .. boundaries.Width - 1 do yield forbiddenPixels.[x, y] }
+                        |> groupConsecutive
+                        |> countFalse
 
-                for x, (nextTrue, nextFalse) in nextTrueAndFalseOnLine do
-                    boundaries.NextFreeRight.[x,y] <- nextFalse
-                    boundaries.NextInvalidRight.[x,y] <- nextTrue
-        }
-
-        yield async {
-            for x in minX .. maxX do
-                let nextTrueAndFalseOnColumn =
-                    seq { for y in 0 .. boundaries.Height - 1 do yield forbiddenPixels.[x, y] }
-                    |> groupConsecutive
-                    |> indexesOfNextTrueAndFalse
-                    |> Seq.mapi (fun i value -> i, value)
-
-                for y, (nextTrue, nextFalse) in nextTrueAndFalseOnColumn do
-                    boundaries.NextFreeBottom.[x,y] <- nextFalse
-                    boundaries.NextInvalidBottom.[x,y] <- nextTrue
-        }
+                    let mutable x = 0
+                    for count in falseCountsOnLine do
+                        boundaries.AvailableRight.[x,y] <- count
+                        x <- x + 1
+            }
     |]
     |> Async.Parallel
     |> Async.RunSynchronously
@@ -151,52 +144,24 @@ let updateBoundaries (forbiddenPixels:bool[,]) ((minX, maxX), (minY, maxY)) boun
 
     boundaries
 
+let coords (arr: 'a[,]) = seq {
+    let width = arr.GetLength(0);
+    let height = arr.GetLength(1); 
+    for x in 0..width-1 do
+        for y in 0..height-1 do
+            yield x,y
+}
+
 let getBoundaries (forbiddenPixels:bool[,]) = 
     let width = forbiddenPixels.GetLength(0)
     let height = forbiddenPixels.GetLength(1)
-
-    let nextFreeRight = Array2D.zeroCreate width height
-    let nextInvalidRight = Array2D.zeroCreate width height
-    let nextFreeBottom = Array2D.zeroCreate width height
-    let nextInvalidBottom = Array2D.zeroCreate width height
-
+    let availableRight = Array2D.zeroCreate width height
     {
         Width = width
         Height = height
-        NextFreeRight = nextFreeRight
-        NextInvalidRight = nextInvalidRight
-        NextFreeBottom = nextFreeBottom
-        NextInvalidBottom = nextInvalidBottom
+        AvailableRight = availableRight
+        Coords = coords availableRight |> Array.ofSeq
     } |> updateBoundaries forbiddenPixels ((0, width - 1), (0, height - 1))
-
-type FitResult =
-    | Fits
-    | CannotFitUntilX of int
-
-let canFit boundaries (width, height) (x, y)  =
-    let blockingPixelsRight =
-        lazy ([| y .. min (y + height) (boundaries.Height - 1) |]
-              |> Array.map (fun y -> boundaries.NextInvalidRight.[x, y], y)
-              |> Array.filter (fun (right, _) -> right < x + width))
-    let blockingPixelsBottom =
-        lazy ([| x .. min (x + width) (boundaries.Width - 1) |]
-              |> Array.map (fun x -> x, boundaries.NextInvalidBottom.[x, y])
-              |> Array.filter (fun (_, bottom) -> bottom < y + height))
-    
-    if blockingPixelsRight.Value.Length > 0 then
-        let blockingX, blockingY = Array.maxBy fst blockingPixelsRight.Value
-        let nextFreeX = if blockingX < boundaries.NextFreeRight.GetLength(0) && blockingY < boundaries.NextFreeRight.GetLength(1)
-                        then boundaries.NextFreeRight.[blockingX, blockingY]
-                        else blockingX
-        CannotFitUntilX nextFreeX
-    elif blockingPixelsBottom.Value.Length > 0 then
-        let blockingX, blockingY = Array.maxBy fst blockingPixelsBottom.Value
-        let nextFreeX = if blockingX < boundaries.NextFreeRight.GetLength(0) && blockingY < boundaries.NextFreeRight.GetLength(1)
-                        then boundaries.NextFreeRight.[blockingX, blockingY]
-                        else blockingX
-        CannotFitUntilX nextFreeX
-    else
-        Fits
 
 type AddingState = {
      ForbiddenPixels: bool[,]
@@ -205,6 +170,23 @@ type AddingState = {
      RemainingWords: (string * TextCandidate list) list
      NextIterationWords: (string * TextCandidate list) list
 }
+
+let findSpot boundaries (width, height) =
+    let rec spotOk (x,y) remaining =
+        match remaining with
+        | 0 -> true
+        | remaining ->
+            let available = boundaries.AvailableRight.[x, y]
+            if available >= width then
+                spotOk (x, y+1) (remaining-1)
+            else
+                false
+
+    let xOk =
+        boundaries.Coords
+        |> Seq.filter (fun coord -> spotOk coord height)
+
+    xOk |> Seq.tryHead
 
 let addWord (targetColors: Color[,]) (state:AddingState) =
     let word, textCandidates = state.RemainingWords.Head
@@ -215,20 +197,9 @@ let addWord (targetColors: Color[,]) (state:AddingState) =
     
     let boundaries = state.Boundaries
 
-    let rec findSpot (width, height) (x, y) =
-        if y >= boundaries.Height then None
-        elif x >= boundaries.Width then findSpot (width, height) (0, y + 1)
-        else
-            match canFit boundaries (width, height) (x, y) with
-            | Fits ->
-                Some (x, y)
-            | CannotFitUntilX nextX ->
-                findSpot (width, height) (nextX, y)
-
     let spots = seq {
         for textCandidate in textCandidates do
-
-            match findSpot (textCandidate.Width, textCandidate.Height) (0, 0) with
+            match findSpot boundaries (textCandidate.Width, textCandidate.Height) with
             | Some (x, y) ->
                 yield {
                     X = x
@@ -237,8 +208,9 @@ let addWord (targetColors: Color[,]) (state:AddingState) =
                 }
             | None -> ()
         }
-
+    let sw = System.Diagnostics.Stopwatch.StartNew()
     let bestSpot = spots |> Seq.tryHead
+    printfn "Spot computation: %O" sw.Elapsed 
 
     let newState =
         match bestSpot with
@@ -248,8 +220,10 @@ let addWord (targetColors: Color[,]) (state:AddingState) =
                     state.ForbiddenPixels.[spot.X + x, spot.Y + y] <- state.ForbiddenPixels.[spot.X + x, spot.Y + y] || spot.TextCandidate.Pixels.[x, y]
 
             let remainingCandidates = textCandidates |> List.skipWhile (fun c -> c <> spot.TextCandidate)
+            let w = System.Diagnostics.Stopwatch.StartNew()
             let updatedBoundaries = state.Boundaries |> updateBoundaries state.ForbiddenPixels ((spot.X, spot.X + spot.TextCandidate.Width - 1), (spot.Y, spot.Y + spot.TextCandidate.Height - 1))
-
+            printfn "Boundaries: %O" w.Elapsed 
+            
             {
                 ForbiddenPixels = state.ForbiddenPixels
                 Boundaries = updatedBoundaries
@@ -276,7 +250,9 @@ let rec addWords targetColors (state:AddingState) =
                                   NextIterationWords = [] }
         addWords targetColors state'
     | _ ->
+        let w = System.Diagnostics.Stopwatch.StartNew ()
         let state' = addWord targetColors state
+        printfn "State evol : %O" w.Elapsed
         addWords targetColors state'
 
 let generate (inputFolder:string, outputFolder:string) (inputFile, words) =
