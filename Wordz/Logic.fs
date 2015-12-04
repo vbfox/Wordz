@@ -267,6 +267,7 @@ let rec addWords targetColors (state:AddingState) =
         printfn "State evol : %O" w.Elapsed
         addWords targetColors state'
 
+open System.IO
 let generate (inputFolder:string, outputFolder:string) (inputFile, words) =
 
     let target = Bitmap.FromFile(inputFolder + inputFile) :?> Bitmap
@@ -296,5 +297,6 @@ let generate (inputFolder:string, outputFolder:string) (inputFile, words) =
             g.DrawString(spot.TextCandidate.Text, font, brush, single (spot.X - fst spot.TextCandidate.Offset), single (spot.Y - snd spot.TextCandidate.Offset))
 
         result
-        
-    result.Save(outputFolder + inputFile, ImageFormat.Png)
+
+    let fname = Path.Combine(outputFolder, inputFile)
+    result.Save(fname, ImageFormat.Png)
