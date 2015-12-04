@@ -220,9 +220,9 @@ let addWord (targetColors: Color[,]) (state:AddingState) =
                 }
             | None -> ()
         }
-    let sw = System.Diagnostics.Stopwatch.StartNew()
+    //let sw = System.Diagnostics.Stopwatch.StartNew()
     let bestSpot = spots |> Seq.tryHead
-    printfn "Spot computation: %O" sw.Elapsed 
+    //printfn "Spot computation: %O" sw.Elapsed 
 
     let newState =
         match bestSpot with
@@ -232,9 +232,9 @@ let addWord (targetColors: Color[,]) (state:AddingState) =
                     state.ForbiddenPixels.[spot.X + x, spot.Y + y] <- state.ForbiddenPixels.[spot.X + x, spot.Y + y] || spot.TextCandidate.Pixels.[x, y]
 
             let remainingCandidates = textCandidates |> List.skipWhile (fun c -> c <> spot.TextCandidate)
-            let w = System.Diagnostics.Stopwatch.StartNew()
+            //let w = System.Diagnostics.Stopwatch.StartNew()
             let updatedBoundaries = state.Boundaries |> updateBoundaries state.ForbiddenPixels ((spot.X, spot.X + spot.TextCandidate.Width - 1), (spot.Y, spot.Y + spot.TextCandidate.Height - 1))
-            printfn "Boundaries: %O" w.Elapsed 
+            //printfn "Boundaries: %O" w.Elapsed 
             
             {
                 ForbiddenPixels = state.ForbiddenPixels
@@ -262,9 +262,9 @@ let rec addWords targetColors (state:AddingState) =
                                   NextIterationWords = [] }
         addWords targetColors state'
     | _ ->
-        let w = System.Diagnostics.Stopwatch.StartNew ()
+        //let w = System.Diagnostics.Stopwatch.StartNew ()
         let state' = addWord targetColors state
-        printfn "State evol : %O" w.Elapsed
+        //printfn "State evol : %O" w.Elapsed
         addWords targetColors state'
 
 open System.IO
@@ -274,6 +274,7 @@ let generate (inputFolder:string, outputFolder:string) (inputFile, words) =
     let targetColors = getColors target
     let empty = new Bitmap(target.Width, target.Height)
     let result =
+        let w = System.Diagnostics.Stopwatch.StartNew ()
         let forbiddenPixels = Array2D.init target.Width target.Height (fun x y -> targetColors.[x, y].A < 15uy)
         let startingState =
             {
@@ -285,7 +286,7 @@ let generate (inputFolder:string, outputFolder:string) (inputFile, words) =
             }
 
         let finalState = addWords targetColors startingState
-
+        printfn "Pure computation : %O" w.Elapsed
         let result = new Bitmap(target.Width, target.Height)
         use g = Graphics.FromImage result
         g.TextRenderingHint <- Text.TextRenderingHint.AntiAlias
@@ -302,5 +303,4 @@ let generate (inputFolder:string, outputFolder:string) (inputFile, words) =
         Path.Combine(
             outputFolder,
             Path.GetFileNameWithoutExtension(inputFile) + "_wordz" + Path.GetExtension(inputFile))
-    printfn "%s" fname
     result.Save(fname, ImageFormat.Png)
