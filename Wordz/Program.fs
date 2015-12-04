@@ -17,7 +17,7 @@ let buildWordSet wordsToUse =
     wordsToUse |> List.map (fun word -> word, Logic.buildTestCandidates word fontSizes)
 
 let inputFolder = @"../../../"
-let outputFolder = @"/Users/fox/Code/"
+let outputFolder = @"../../../"
 
 let inputFiles =
     [

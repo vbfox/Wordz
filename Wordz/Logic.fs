@@ -298,5 +298,9 @@ let generate (inputFolder:string, outputFolder:string) (inputFile, words) =
 
         result
 
-    let fname = Path.Combine(outputFolder, inputFile)
+    let fname =
+        Path.Combine(
+            outputFolder,
+            Path.GetFileNameWithoutExtension(inputFile) + "_wordz" + Path.GetExtension(inputFile))
+    printfn "%s" fname
     result.Save(fname, ImageFormat.Png)
