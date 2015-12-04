@@ -112,11 +112,23 @@ let findSpot boundaries (width, height) =
             else
                 false
 
-    let xOk =
-        boundaries.AvailableRight
-        |> coords
-        |> Seq.filter (fun coord -> spotOk coord height)
+    let mutable x = 0
+    let mutable y = 0
+    let mutable found = false
+    while y < boundaries.Height && not found do
+        printfn "checking %i, %i" x y
+        if spotOk (x,y) height then
+            found <- true
+        else
+            if x < boundaries.Width-1 then
+                x <- x + 1
+            else
+                y <- y + 1
+                x <- 0
 
-    xOk |> Seq.tryHead
+    if found then
+        Some (x,y)
+    else
+        None
 
 findSpot boundaries (1,1)

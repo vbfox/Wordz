@@ -182,11 +182,23 @@ let findSpot boundaries (width, height) =
             else
                 false
 
-    let xOk =
-        boundaries.Coords
-        |> Seq.filter (fun coord -> spotOk coord height)
+    let mutable x = 0
+    let mutable y = 0
+    let mutable found = false
+    while y < boundaries.Height && not found do
+        if spotOk (x,y) height then
+            found <- true
+        else
+            if x < boundaries.Width-1 then
+                x <- x + 1
+            else
+                y <- y + 1
+                x <- 0
 
-    xOk |> Seq.tryHead
+    if found then
+        Some (x,y)
+    else
+        None
 
 let addWord (targetColors: Color[,]) (state:AddingState) =
     let word, textCandidates = state.RemainingWords.Head
